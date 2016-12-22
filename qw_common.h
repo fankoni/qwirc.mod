@@ -92,12 +92,16 @@ typedef unsigned char byte;
  */
 
 #define VER1 1
-#define VER2 0
+#define VER2 1
 bool qw_running;                        // Is the QuakeWorld thread running?
 bool print_ver_info;                    // Print version info on connecting?
 
 float res_last_calc;                    // When last resource usage calculation was done
 extern pthread_mutex_t qw_mutex;        // Mutex used to lock shared tcl variables
+
+// Memory management
+extern void* qw_eggdrop_malloc(int size);
+extern void qw_eggdrop_free(void* pointer);
 
 // TCL variables:
 extern char qw_name[25];                // Bot's in-game name
@@ -118,7 +122,7 @@ extern int color_chattext;              // Chat message color in IRC
 extern int color_normaltext;            // Default message color in IRC
 
 // Other shared stuff
-extern void irc_print(char* msg, int color);
+extern void qw_to_irc_print(char* msg, int color);
 extern char irc_msg_buf[MAX_PRINT_MSG]; // Holding area for irc-to-qw chat
 extern long qw_maxrss;                  // Amount of memory used by QW thread
 struct rusage qw_rusage;                // QuakeWorld thread resource usage

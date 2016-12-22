@@ -190,7 +190,7 @@ static void qw_connect(char* nick, char* host, char* hand, char* channel, char* 
     pthread_mutex_unlock(&qw_mutex);
     
     // Store current irc channel name
-    strncpy(qw_channel, channel, strlen(channel));
+    strncpy(qw_channel, channel, strlen(channel) + 1);
 
     // Create thread
     qw_thread_status = pthread_create(&qw_thread, NULL, qw_init, (void *) 0);
@@ -311,7 +311,7 @@ Prints available commands
 static void qw_help(char *nick, char *host, char *hand, char *channel, char *text, int idx) {
     cmd_t* cur_cmd;
     int cmd_count = 0, i = 0;
-    char cmd_list[200] = "";
+    char cmd_list[200];
     
     if (ngetudef(MODULE_NAME, channel)) {
         // Check if !qhelp is allowed by default. If not, check for uflag 'Q'
@@ -340,60 +340,58 @@ static void qw_help(char *nick, char *host, char *hand, char *channel, char *tex
 
 /*
 ==============
-irc_print
+qw_to_irc_print
 Handles printing incoming text from QuakeWorld in IRC
 ==============
  */
-void irc_print(char* msg, int color) {
+void qw_to_irc_print(char* msg, int color) {
     static bool ignore = false;
     static char msg_buffer[MAX_PRINT_MSG];
-    char print_msg[MAX_PRINT_MSG];
-    char stripped_msg[MAX_PRINT_MSG];
-    char bot_say[40];
-
+    
     if (msg[0]) {
+        char* irc_msg = nmalloc(strlen(msg) + 1);
+        strncpy(irc_msg, msg, strlen(msg) + 1);
         // Remove leading newlines
-        if (msg[0] == '\n') {
-            memmove(msg, msg + 1, strlen(msg) - 1);
+        if (irc_msg[0] == '\n') {
+            memmove(msg, msg + 1, strlen(irc_msg) + 1);
         }
-        strncpy(print_msg, msg, strlen(msg));
 
         // Get rid of QuakeWorld's character encoding
-        qw_cleantext((unsigned char*) print_msg);
+        qw_cleantext(irc_msg);
 
         // Check for trigger messages.. We don't want to print all the
         // player stats at the end of the map in ktx.. Ugly check but 
         // there's no other way without modifying the QW server
         if (!ignore && color == color_chattext) {
-            if (strnstr(print_msg, 18, "Player statistics"))
+            if (strnstr(irc_msg, 18, "Player statistics"))
                 ignore = true;
         }
         // Start printing again after this
         else if (ignore && color == color_chattext) {
-            if (strnstr(print_msg, strlen(print_msg), "top scorers"))
+            if (strnstr(irc_msg, strlen(msg), "top scorers"))
                 ignore = false;
         }
 
         if (!ignore) {
-            // Just copy to buffer in case there's no newline
-            if (strnstr(print_msg, strlen(print_msg), "\n") == 0) {
-                strncat(msg_buffer, print_msg, strlen(print_msg));
-            } else {
-                snprintf(bot_say, sizeof(bot_say), "%s: ", qw_name);
-                // Append to buffer
-                if (msg_buffer[0]) {
-                    strncat(msg_buffer, print_msg, strlen(print_msg));
-                    strncpy(print_msg, msg_buffer, strlen(msg_buffer));
-                    msg_buffer[0] = 0;
-                }
-                // Check if the string begins with the bot's nick. If so, remove.
-                if (strnstr(print_msg, strlen(bot_say), bot_say) != NULL) {
-                    memmove(stripped_msg, print_msg + strlen(bot_say), strlen(print_msg) - strlen(bot_say));
-                    dprintf(DP_HELP, "PRIVMSG %s :\003%d%s", qw_channel, color, stripped_msg);
-                } else
-                    dprintf(DP_HELP, "PRIVMSG %s :\003%d%s", qw_channel, color, print_msg);
+            // Check if the string begins with the bot's nick. If so, remove.
+            char* bot_say_prefix = nmalloc(strlen(qw_name) + 3);
+            snprintf(bot_say_prefix, strlen(qw_name) + 3, "%s: ", qw_name);
+            if (strnstr(irc_msg, strlen(bot_say_prefix), bot_say_prefix) != NULL) {
+                memmove(irc_msg, irc_msg + strlen(bot_say_prefix), strlen(irc_msg) - strlen(bot_say_prefix));
+                // terminate
+                msg[strlen(irc_msg) - strlen(bot_say_prefix) + 1] = 0;
+            }
+            nfree(bot_say_prefix);
+            
+            // Append to buffer
+            strncat(msg_buffer, irc_msg, strlen(irc_msg));
+            // Print only if there's a new line
+            if (strnstr(msg_buffer, strlen(msg_buffer), "\n") != NULL) {
+                dprintf(DP_HELP, "PRIVMSG %s :\003%d%s", qw_channel, color, msg_buffer);
+                msg_buffer[0] = 0;
             }
         }
+        nfree(irc_msg);
     }
 }
 
@@ -404,7 +402,6 @@ Initializes QuakeWorld character encoding table.
 This code is from the mvdsv project.
 ====================
  */
-
 static void qw_cleantext_init(void) {
     int i;
 
@@ -418,7 +415,7 @@ static void qw_cleantext_init(void) {
     qw_char_tbl[13] = 13;
 
     // Dot
-    qw_char_tbl[5 ] = qw_char_tbl[14 ] = qw_char_tbl[15 ] = qw_char_tbl[28 ] = qw_char_tbl[46 ] = '.';
+    qw_char_tbl[5] = qw_char_tbl[14] = qw_char_tbl[15] = qw_char_tbl[28] = qw_char_tbl[46] = '.';
     qw_char_tbl[5 + 128] = qw_char_tbl[14 + 128] = qw_char_tbl[15 + 128] = qw_char_tbl[28 + 128] = qw_char_tbl[46 + 128] = '.';
 
     // Numbers
@@ -428,7 +425,6 @@ static void qw_cleantext_init(void) {
     // Brackets
     qw_char_tbl[16] = qw_char_tbl[16 + 128] = '[';
     qw_char_tbl[17] = qw_char_tbl[17 + 128] = ']';
-
 
     // Left arrow
     qw_char_tbl[127] = '>';
@@ -448,9 +444,9 @@ Gets rid of QuakeWorld's character encoding in order to display the text
 cleanly in IRC.
 ==============
  */
-static void qw_cleantext(unsigned char *text) {
+static void qw_cleantext(char *text) {
     for (; *text; text++) {
-        *text = qw_char_tbl[*text];
+        *text = qw_char_tbl[(unsigned char)*text];
         // Remove double newlines
         if (*text == '\n') {
             if (text + 1) {
@@ -482,4 +478,24 @@ static int has_qflag(char *handle, char *channel) {
         return 0;
 
     return 1;
+}
+
+/*
+==============
+qw_eggdrop_malloc
+Allocate memory using eggdrop nmalloc function
+==============
+ */
+void* qw_eggdrop_malloc(int size) {
+    return nmalloc(size);
+}
+
+/*
+==============
+qw_eggdrop_free
+Allocate memory using eggdrop nfree function
+==============
+ */
+void qw_eggdrop_free(void* pointer) {
+    nfree(pointer);
 }

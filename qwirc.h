@@ -64,7 +64,7 @@ int qw_thread_status = 1;
 // Module functions
 void irc_print(char* msg, int color);
 static int has_qflag(char* nick, char* channel);
-static void qw_cleantext(unsigned char *text);
+static void qw_cleantext(char* text);
 static void qw_cleantext_init (void);
 static void qw_rcon(char *nick, char *host, char *hand, char *channel, char *text, int idx);
 static void qw_mapinfo(char *nick, char *host, char *hand, char *channel, char *text, int idx);

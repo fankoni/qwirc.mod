@@ -236,7 +236,7 @@ Also initializes serverinfo root node.
 void infostring_init(void) {
     infonode_t* cur_node;
     char tmp_str[64]; // Used to convert int values to strings
-    userinfo_root = (infonode_t*) malloc(sizeof (infonode_t));
+    userinfo_root = (infonode_t*) qw_eggdrop_malloc(sizeof (infonode_t));
     userinfo_root->next = NULL;
     pthread_mutex_lock(&qw_mutex);
 
@@ -261,7 +261,7 @@ void infostring_init(void) {
 
     pthread_mutex_unlock(&qw_mutex);
 
-    serverinfo_root = (infonode_t*) malloc(sizeof (infonode_t));
+    serverinfo_root = (infonode_t*) qw_eggdrop_malloc(sizeof (infonode_t));
     serverinfo_root->next = NULL;
 }
 
@@ -284,10 +284,10 @@ infonode_t* infostring_add_node(infonode_t* pos, char* key, char* val) {
     }
 
     // Allocate new node
-    pos->next = (struct infonode_t*) malloc(sizeof (infonode_t));
+    pos->next = (struct infonode_t*) qw_eggdrop_malloc(sizeof (infonode_t));
     pos = (infonode_t*) pos->next;
-    strncpy(pos->key, key, strlen(key));
-    strncpy(pos->value, val, strlen(val));
+    strncpy(pos->key, key, strlen(key) + 1);
+    strncpy(pos->value, val, strlen(val) + 1);
     pos->next = NULL;
 
     return pos;
@@ -300,11 +300,11 @@ Checks a key-value pair for errors
 =================
 */
 bool infostring_check_input(char* key, char* value) {
-    if (strnstr(key, strlen(key), "\\") || strnstr(value, strlen(value), "\\")) {
+    if (strnstr(key, strlen(key), "\\") != NULL || strnstr(value, strlen(value), "\\") != NULL) {
         printf("Error: Can't use infostring keys or values with a \\\n");
         return false;
     }
-    if (strnstr(key, strlen(key), "\"") || strnstr(value, strlen(value), "\"")) {
+    if (strnstr(key, strlen(key), "\"") != NULL || strnstr(value, strlen(value), "\"") != NULL) {
         printf("Error: Can't use infostring keys or values with a \"\n");
         return false;
     }
@@ -335,7 +335,7 @@ void infostring_update_node(infonode_t* node, char* key, char* val) {
     // Did we get the correct node as argument?
     if (node->key) {
         if (!strcmp(node->key, key)) {
-            strncpy(node->value, val, strlen(val));
+            strncpy(node->value, val, strlen(val) + 1);
             return;
         }
     }
@@ -344,7 +344,7 @@ void infostring_update_node(infonode_t* node, char* key, char* val) {
     while (node->next && !found) {
         node = (infonode_t*) node->next;
         if (!strcmp(node->key, key)) {
-            strncpy(node->value, val, strlen(val));
+            strncpy(node->value, val, strlen(val) + 1);
             found = true;
             break;
         }
@@ -375,17 +375,17 @@ void infostring_clear(infonode_t* root, bool free_root) {
         // Store the address of the node after the next node, then delete next node
         while (tmp->next) {
             root->next = tmp->next;
-            free(tmp);
+            qw_eggdrop_free(tmp);
             tmp = (infonode_t*) root->next;
         }
-        free(tmp);
+        qw_eggdrop_free(tmp);
 
         root->next = NULL;
     }
     
     // Free the root node if requested. Normally only on disconnect.
     if (free_root) {
-        free(root);
+        qw_eggdrop_free(root);
         root = NULL;
     }
 }

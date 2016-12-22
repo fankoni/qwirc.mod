@@ -99,7 +99,7 @@ void qw_frame() {
 
     // Timeout after 30 seconds of silence
     if (qw.realtime - netchan.last_recv.time > 30000 && con_state >= connected) {
-        irc_print("Connection timed out. Exiting thread.\n", color_statusmessage);
+        qw_to_irc_print("Connection timed out. Exiting thread.\n", color_statusmessage);
         pthread_mutex_lock(&qw_mutex);
         qw_running = false;
         pthread_mutex_unlock(&qw_mutex);
@@ -109,7 +109,7 @@ void qw_frame() {
     pthread_mutex_lock(&qw_mutex);
     if (!qw_running && con_state >= connected) {
         pthread_mutex_unlock(&qw_mutex);
-        irc_print("Disconnected.\n", color_statusmessage);
+        qw_to_irc_print("Disconnected.\n", color_statusmessage);
         exec_chat("Bye bye!");
         net_disconnect();
         con_clear();

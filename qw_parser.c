@@ -212,7 +212,7 @@ void parser_tokenize(char *text, bool macro_expand) {
 
     // Clear the args from the last string
     for (i = 0; i < cmd_argc; i++)
-        free(cmd_argv[i]);
+        qw_eggdrop_free(cmd_argv[i]);
 
     cmd_argc = 0;
     cmd_args[0] = 0;
@@ -258,7 +258,7 @@ void parser_tokenize(char *text, bool macro_expand) {
             return;
 
         if (cmd_argc < MAX_STRING_TOKENS) {
-            cmd_argv[cmd_argc] = malloc(strlen(com_token) + 1);
+            cmd_argv[cmd_argc] = qw_eggdrop_malloc(strlen(com_token) + 1);
             strcpy(cmd_argv[cmd_argc], com_token);
             cmd_argc++;
         }
@@ -285,6 +285,6 @@ char *strnstr(char *haystack, int hlen, char *needle)
 		haystack++;
 		hlen--;
 	}
-	return 0;
+	return NULL;
 }
 

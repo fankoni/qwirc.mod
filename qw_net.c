@@ -100,7 +100,7 @@ void netchan_transmit(netchan_t *chan, int length, byte *data) {
 
     // Check for buffer overflow
     if (chan->message.overflowed) {
-        irc_print("Fatal error: outgoing message overflow!\n", color_statusmessage);
+        qw_to_irc_print("Fatal error: outgoing message overflow!\n", color_statusmessage);
         // Signal thread to be shut down
         pthread_mutex_lock(&qw_mutex);
         qw_running = false;
@@ -316,7 +316,7 @@ void netadr_local_setup(void) {
     namelen = sizeof (address);
     if (getsockname(net_socket, (struct sockaddr *) &address, (socklen_t*) & namelen) == -1) {
         snprintf(err_str, sizeof (err_str), "Error while getting local address: getsockname() returned %s.\n", strerror(errno));
-        irc_print(err_str, color_statusmessage);
+        qw_to_irc_print(err_str, color_statusmessage);
     }
     net_local_adr.port = address.sin_port;
 }
@@ -393,12 +393,12 @@ int udp_open(int port) {
     char non_blocking = 1;
 
     if ((qw_socket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
-        snprintf(err_str, sizeof (err_str), "Error: socket() returned %s. (udp_open())\n", strerror(errno));
-        irc_print(err_str, color_statusmessage);
+        snprintf(err_str, sizeof(err_str), "Error: socket() returned %s. (udp_open())\n", strerror(errno));
+        qw_to_irc_print(err_str, color_statusmessage);
     }
     if (ioctl(qw_socket, FIONBIO, &non_blocking) == -1) {
-        snprintf(err_str, sizeof (err_str), "Error: ioctl() returned %s. (udp_open())\n", strerror(errno));
-        irc_print(err_str, color_statusmessage);
+        snprintf(err_str, sizeof(err_str), "Error: ioctl() returned %s. (udp_open())\n", strerror(errno));
+        qw_to_irc_print(err_str, color_statusmessage);
     }
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
@@ -406,8 +406,8 @@ int udp_open(int port) {
     address.sin_port = htons((short) port);
 
     if (bind(qw_socket, (void *) &address, sizeof (address)) == -1) {
-        snprintf(err_str, sizeof (err_str), "Error: bind() returned %s. (udp_open())\n", strerror(errno));
-        irc_print(err_str, color_statusmessage);
+        snprintf(err_str, sizeof(err_str), "Error: bind() returned %s. (udp_open())\n", strerror(errno));
+        qw_to_irc_print(err_str, color_statusmessage);
     }
 
     return qw_socket;
@@ -431,7 +431,7 @@ void con_init(int port) {
     netadr_local_setup();
 
     con_state = disconnected;
-    irc_print("QuakeWorld UDP Initialized.\n", color_statusmessage);
+    qw_to_irc_print("QuakeWorld UDP Initialized.\n", color_statusmessage);
 
     // Assign a random qport number
     qw.qport = ((int) (getpid() + getuid() * 1000) * time(NULL)) & 0xFFFF;
@@ -485,9 +485,9 @@ void net_parse_command(void) {
 
             case svc_disconnect:
                 if (con_state == connected)
-                    irc_print("Server disconnected\nServer version may not be compatible\n", color_statusmessage);
+                    qw_to_irc_print("Server disconnected\nServer version may not be compatible\n", color_statusmessage);
                 else
-                    irc_print("Server disconnected\n", color_statusmessage);
+                    qw_to_irc_print("Server disconnected\n", color_statusmessage);
                 break;
 
             case svc_print:
@@ -502,7 +502,7 @@ void net_parse_command(void) {
                 while (lines != NULL) {
                     // Add "\n" because the result of strtok doesn't include the token
                     snprintf(cur_line, strlen(lines) + 2, "%s\n", lines);
-                    irc_print(cur_line, color_chattext);
+                    qw_to_irc_print(cur_line, color_chattext);
 
                     // Get next line
                     lines = strtok(NULL, "\n");
@@ -522,7 +522,7 @@ void net_parse_command(void) {
                 break;
 
             case svc_finale:
-                irc_print(net_read_string(false), color_statusmessage);
+                qw_to_irc_print(net_read_string(false), color_statusmessage);
                 break;
 
             case svc_updateuserinfo:
@@ -707,8 +707,8 @@ void exec_serverdata(void) {
     // Parse protocol version number
     proto_ver = net_read_bytes(4);
     if (proto_ver != QW_PROTOCOL_VERSION) {
-        snprintf(temp_str, sizeof(temp_str), "Server returned protocol version %i, not %i. Aborting.", proto_ver, QW_PROTOCOL_VERSION);
-        irc_print(temp_str, color_statusmessage);
+        snprintf(temp_str, sizeof(temp_str), "Server returned protocol version %i, not %i. Aborting.\n", proto_ver, QW_PROTOCOL_VERSION);
+        qw_to_irc_print(temp_str, color_statusmessage);
         pthread_mutex_lock(&qw_mutex);
         qw_running = false;
         pthread_mutex_unlock(&qw_mutex);
@@ -737,7 +737,7 @@ void exec_serverdata(void) {
     // Store in shared variable as well (for !qmap IRC command)
     strncpy(qw_map, qw.map, sizeof(qw_map));
     pthread_mutex_unlock(&qw_mutex);
-    irc_print(temp_str, color_statusmessage);
+    qw_to_irc_print(temp_str, color_statusmessage);
 
     // Now waiting for downloads, etc
     con_state = processing;
@@ -827,7 +827,7 @@ Reconnects to the server due to server or user request
  */
 void net_reconnect(void) {
     if (con_state == connected) {
-        irc_print("Reconnecting...\n", color_statusmessage);
+        qw_to_irc_print("Reconnecting...\n", color_statusmessage);
         net_write_integer(&netchan.message, clc_stringcmd, 1);
         net_write_string(&netchan.message, "new");
         return;
@@ -836,7 +836,7 @@ void net_reconnect(void) {
     pthread_mutex_lock(&qw_mutex);
     if (!*qw_server) {
         pthread_mutex_unlock(&qw_mutex);
-        irc_print("No server to reconnect to...\n", color_statusmessage);
+        qw_to_irc_print("No server to reconnect to...\n", color_statusmessage);
         return;
     }
     pthread_mutex_unlock(&qw_mutex);
@@ -935,7 +935,7 @@ void net_request_challenge(void) {
     snprintf(irc_msg, sizeof(irc_msg), "Connecting to %s...\n", qw_server);
     pthread_mutex_unlock(&qw_mutex);
 
-    irc_print(irc_msg, color_statusmessage);
+    qw_to_irc_print(irc_msg, color_statusmessage);
 
     net_oob_transmit(adr, 13, "getchallenge\n");
 }
@@ -959,12 +959,12 @@ void exec_rcon(char* cmd) {
     pthread_mutex_lock(&qw_mutex);
     if (!qw_rcon_password[0]) {
         pthread_mutex_unlock(&qw_mutex);
-        irc_print("You must set the tcl variable 'qw_rcon_password' before "
+        qw_to_irc_print("You must set the tcl variable 'qw_rcon_password' before "
                 "issuing an rcon command.\n", color_normaltext);
         return;
     }
     pthread_mutex_unlock(&qw_mutex);
-    strncpy(cmds, cmd, strlen(cmd));
+    strncpy(cmds, cmd, strlen(cmd) + 1);
 
     if (qw_encrypt_rcon) {
         strncpy(message, "rcon ", 5);
@@ -1056,7 +1056,7 @@ void net_oob_process(void) {
             net_write_integer(&netchan.message, clc_stringcmd, 1);
             net_write_string(&netchan.message, "new");
             con_state = connected;
-            irc_print("Connected.\n", color_statusmessage);
+            qw_to_irc_print("Connected.\n", color_statusmessage);
             break;
         case CHALLENGE_RESPONSE:
             tmp = net_read_string(false);
