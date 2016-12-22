@@ -309,9 +309,8 @@ Prints available commands
 ==============
  */
 static void qw_help(char *nick, char *host, char *hand, char *channel, char *text, int idx) {
-    cmd_t* cur_cmd;
-    int cmd_count = 0, i = 0;
-    char cmd_list[200];
+    int cmd_count = 0;
+    char cmd_list[200] = {0};
     
     if (ngetudef(MODULE_NAME, channel)) {
         // Check if !qhelp is allowed by default. If not, check for uflag 'Q'
@@ -324,13 +323,14 @@ static void qw_help(char *nick, char *host, char *hand, char *channel, char *tex
         }
     }
     // Count commands first
-    for (cur_cmd = qwirc_public_cmds; cur_cmd->name; cur_cmd++, cmd_count++);
+    for (cmd_t* cur_cmd = qwirc_public_cmds; cur_cmd->name; cur_cmd++, cmd_count++);
     
     // Now print to string
-    for (cur_cmd = qwirc_public_cmds; cur_cmd->name; cur_cmd++, i++) {
-        strncat(cmd_list, cur_cmd->name, strlen(cur_cmd->name));
-        if (i < (cmd_count -1))
+    for (cmd_t* cur_cmd = qwirc_public_cmds; cur_cmd->name; cur_cmd++) {
+        if (cmd_list[0]) {
             strncat(cmd_list, ", ", 2);
+        }
+        strncat(cmd_list, cur_cmd->name, strlen(cur_cmd->name) + 1);   
     }
     
     // Print to irc
